@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+ {% load static %}
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FreshFood Home</title>
+    <link rel="stylesheet" href="{% static 'food_app/styles.css' %}">
+</head> 
+<body>
+    <header>
+        <h1>Welcome to FreshFood</h1>
+        <nav>
+            <ul>
+                <li><a href="{% url 'product_list' %}">Products</a></li>
+                <li><a href="{% url 'customer_list' %}">Customers</a></li>
+                <li><a href="{% url 'order_list' %}">Orders</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main>
+        <section>
+            <h2>Fresh and Healthy Food Delivered to Your Doorstep</h2>
+            <p>Explore our wide range of fresh food products and enjoy the convenience of home delivery.</p>
+        </section>
+    </main>
+
+    <footer>
+        <p>&copy; 2024 FreshFood. All rights reserved.</p>
+    </footer>
+</html>
