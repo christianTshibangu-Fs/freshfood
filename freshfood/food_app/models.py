@@ -7,27 +7,30 @@ from django.contrib.auth.models import User
 
 class Product(models.Model):
     CATEGORIE_CHOICES = (
-        ('Admin', 'Admin'),
-        ('Librarian', 'Bibliothécaire'),
-        ('Member', 'Membre'),
+        ('vf', 'viancde fraiche'),
+        ('leg', 'legume'),
+        ('sec', 'produit sec'),
+        ('fru', 'fruit'),
+        ('aut', 'autre'),
     )
     label = models.CharField(max_length=100)
-    Categorie = CATEGORIE_CHOICES
-    price = models.DecimalField(max_digits=10, decimal_places=2)
-    description = models.IntegerField()
+    Categorie = models.CharField(choices=CATEGORIE_CHOICES, max_length=50, default='aut')
+    price = models.PositiveIntegerField()
+    description = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return self.name
+        return self.label
     
 class Order(models.Model):
-    customer = models.ForeignKey(User, on_delete=models.CASCADE) 
+    customer = models.ForeignKey(User, on_delete=models.CASCADE)
+    client_name = models.CharField(max_length=100, blank=True, null=True) 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"Order #{self.id} - {self.created_at.strftime('%Y-%m-%d %H:%M:%S')}"
+        return self.client_name if self.client_name else f"Order {self.id}"
 
 class OrderArticle(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE)

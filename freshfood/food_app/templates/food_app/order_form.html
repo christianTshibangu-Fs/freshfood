@@ -1,0 +1,327 @@
+
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Créer une Commande - E-Commerce Simplifié</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Définir une police de caractères par défaut */
+        body { font-family: 'Inter', sans-serif; background-color: #f7fafc; }
+        /* Style pour les cartes */
+        .product-card { transition: transform 0.2s; }
+        .product-card:hover { transform: translateY(-3px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); }
+    </style>
+</head>
+<body class="p-8">
+
+    <div class="max-w-7xl mx-auto">
+        <h1 class="text-4xl font-extrabold text-gray-900 mb-8">Création de Commande</h1>
+
+        <!-- Conteneurs Flex: Liste des Produits et Panier -->
+        <div class="flex flex-col lg:flex-row gap-8">
+            
+            <!-- 1. Liste des Produits -->
+            <div class="lg:w-2/3 bg-white p-6 rounded-xl shadow-lg">
+                <h2 class="text-2xl font-semibold text-gray-800 mb-4 border-b pb-2">Produits Disponibles</h2>
+                <div id="product-list" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Les produits seront injectés ici par le template Django -->
+                    {% for product in products %}
+                    <div class="product-card border border-gray-200 p-4 rounded-lg bg-white flex flex-col justify-between"
+                         data-id="{{ product.id }}"
+                         data-label="{{ product.label }}"
+                         data-price="{{ product.price }}"
+                         data-description="{{ product.description }}">
+                        
+                        <div>
+                            <h3 class="text-lg font-bold text-indigo-700">{{ product.label }}</h3>
+                            <p class="text-gray-500 text-sm mt-1 mb-3">{{ product.description|truncatechars:100 }}</p>
+                            <p class="text-xl font-extrabold text-green-600 mb-3">{{ product.price }} FCFA</p>
+                        </div>
+
+                        <div class="flex items-center gap-2 mt-2">
+                            <input type="number" min="1" value="1" id="qty-{{ product.id }}" 
+                                   class="w-20 p-2 border border-gray-300 rounded-lg text-center focus:ring-indigo-500 focus:border-indigo-500">
+                            <!-- ID entre guillemets pour garantir la bonne syntaxe JS -->
+                            <button onclick="addToCart('{{ product.id }}')" 
+                                    class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-4 rounded-lg transition duration-150 shadow-md">
+                                Ajouter au Panier
+                            </button>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- 2. Panier et Validation -->
+            <div class="lg:w-1/3 bg-white p-6 rounded-xl shadow-lg border-2 border-dashed border-gray-300">
+                <h2 class="text-2xl font-semibold text-gray-800 mb-4 border-b pb-2">Votre Panier</h2>
+                
+                <div id="cart-summary" class="space-y-4">
+                    <!-- Les articles du panier seront affichés ici par JS -->
+                    <p id="empty-cart-message" class="text-gray-500 text-center py-4">Le panier est vide.</p>
+                </div>
+
+                <div class="mt-6 pt-4 border-t border-gray-200">
+                    <p class="text-xl font-bold text-gray-900 flex justify-between">
+                        Total : <span id="cart-total" class="text-indigo-600">0 FCFA</span>
+                    </p>
+                </div>
+                
+                <div class="mt-6">
+                    <label for="client_name_input" class="block text-sm font-medium text-gray-700">Nom du client (Optionnel)</label>
+                    <input type="text" id="client_name_input" placeholder="Entrez le nom du client"
+                           class="mt-1 block w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-green-500 focus:border-green-500">
+                </div>
+                
+                <button onclick="submitOrder()" id="validate-btn" disabled
+                        class="mt-4 w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg transition duration-150 opacity-50 cursor-not-allowed">
+                    Valider la Commande
+                </button>
+            </div>
+        </div>
+
+        <!-- 3. Message de confirmation (Modal/Box) -->
+        <div id="alert-box" class="fixed top-5 right-5 p-4 rounded-lg shadow-xl hidden transition-opacity duration-300" role="alert">
+            <p id="alert-message" class="font-medium"></p>
+        </div>
+
+    </div>
+
+    <!-- Le token CSRF est récupéré ici via un champ masqué -->
+    {% csrf_token %}
+    <script>
+        // Récupérer le token CSRF de Django en lisant la valeur du champ masqué
+        const CSRF_TOKEN = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        
+        // Structure du panier: { product_id: { label: str, price: int, quantity: int } }
+        let cart = {};
+
+        // Variables globales pour mettre en cache les éléments critiques du DOM
+        let _summaryDiv, _totalSpan, _emptyMessage, _validateBtn, _alertBox, _alertMessage;
+        
+        // Fonction pour ajouter un article au panier
+        function addToCart(productId) {
+            console.log(`Tentative d'ajout au panier du produit ID: ${productId}`);
+
+            // Vérification si le DOM est initialisé
+            if (!_validateBtn) {
+                 console.error("ERREUR CRITIQUE: Le DOM n'a pas été initialisé. Arrêt de addToCart.");
+                 return;
+            }
+
+            const qtyInput = document.getElementById(`qty-${productId}`);
+            
+            // Vérification de l'existence de l'élément de quantité
+            if (!qtyInput) {
+                console.error(`Erreur: Élément de quantité (ID: qty-${productId}) introuvable.`);
+                displayAlert('Erreur interne: Élément de quantité introuvable.', 'bg-red-100 text-red-800');
+                return;
+            }
+
+            let quantity = parseInt(qtyInput.value);
+
+            // Vérifier la quantité
+            if (isNaN(quantity) || quantity < 1) {
+                displayAlert('Veuillez entrer une quantité valide (minimum 1).', 'bg-yellow-100 text-yellow-800');
+                return;
+            }
+
+            const productElement = document.querySelector(`.product-card[data-id="${productId}"]`);
+            
+            // Vérification de l'existence de l'élément produit
+            if (!productElement) {
+                console.error(`Erreur: Élément produit (data-id: ${productId}) introuvable dans le DOM.`);
+                displayAlert('Erreur : Produit introuvable dans le DOM.', 'bg-red-100 text-red-800');
+                return;
+            }
+            
+            const label = productElement.dataset.label;
+            const price = parseInt(productElement.dataset.price);
+
+            if (cart[productId]) {
+                // Si l'article existe, ajouter la quantité
+                cart[productId].quantity += quantity;
+            } else {
+                // Sinon, ajouter le nouvel article
+                cart[productId] = {
+                    label: label,
+                    price: price,
+                    quantity: quantity
+                };
+            }
+
+            renderCart();
+            // Affichage de l'alerte pour l'ajout
+            displayAlert(`'${label}' ajouté au panier (x${quantity}).`, 'bg-blue-100 text-blue-800');
+        }
+
+        // Fonction pour mettre à jour la quantité dans le panier
+        function updateQuantity(productId, newQuantity) {
+            if (newQuantity < 1) {
+                delete cart[productId];
+            } else {
+                cart[productId].quantity = newQuantity;
+            }
+            renderCart();
+            displayAlert('Panier mis à jour.', 'bg-gray-100 text-gray-800');
+        }
+
+        // Fonction pour afficher le panier et le total
+        function renderCart() {
+            // Utiliser les références globales mises en cache
+            const summaryDiv = _summaryDiv;
+            const totalSpan = _totalSpan;
+            const emptyMessage = _emptyMessage;
+            const validateBtn = _validateBtn;
+            
+            // Ce bloc de vérification devrait maintenant être inutile si l'initialisation a réussi.
+            // Nous le laissons ici pour une dernière sécurité.
+            if (!summaryDiv || !totalSpan || !emptyMessage || !validateBtn) {
+                console.error("ERREUR CRITIQUE: Les références DOM n'ont pas été chargées correctement.");
+                return; 
+            }
+            
+            summaryDiv.innerHTML = '';
+            let total = 0;
+            const itemIds = Object.keys(cart);
+
+            if (itemIds.length === 0) {
+                emptyMessage.classList.remove('hidden');
+                validateBtn.disabled = true;
+                validateBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                totalSpan.textContent = `0 FCFA`;
+                return;
+            }
+
+            emptyMessage.classList.add('hidden');
+            validateBtn.disabled = false;
+            validateBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+
+            itemIds.forEach(id => {
+                const item = cart[id];
+                const subtotal = item.price * item.quantity;
+                total += subtotal;
+
+                // Création de l'élément d'article dans le panier
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'flex items-center justify-between p-3 border border-gray-200 rounded-lg bg-gray-50';
+                itemDiv.innerHTML = `
+                    <span class="font-medium text-gray-700 w-1/2">${item.label}</span>
+                    <div class="flex items-center gap-2">
+                        <input type="number" min="0" value="${item.quantity}" 
+                               onchange="updateQuantity('${id}', parseInt(this.value))"
+                               class="w-16 p-1 border border-gray-300 rounded-lg text-center text-sm">
+                        <span class="text-sm font-semibold text-gray-600">${subtotal.toLocaleString('fr-FR')} FCFA</span>
+                        <button onclick="updateQuantity('${id}', 0)" title="Retirer"
+                                class="text-red-500 hover:text-red-700 transition duration-150">
+                            &times;
+                        </button>
+                    </div>
+                `;
+                summaryDiv.appendChild(itemDiv);
+            });
+
+            totalSpan.textContent = `${total.toLocaleString('fr-FR')} FCFA`;
+        }
+
+        // Fonction pour soumettre la commande au serveur (POST)
+        async function submitOrder() {
+            if (Object.keys(cart).length === 0) {
+                displayAlert('Impossible de valider: Le panier est vide.', 'bg-red-100 text-red-800');
+                return;
+            }
+
+            const clientName = document.getElementById('client_name_input').value.trim();
+            const validateBtn = _validateBtn;
+            
+            validateBtn.disabled = true;
+            validateBtn.textContent = 'Validation en cours...';
+
+            const cartItemsForAPI = Object.keys(cart).map(id => ({
+                product_id: parseInt(id),
+                quantity: cart[id].quantity
+            }));
+
+            const payload = {
+                client_name: clientName,
+                cart_items: cartItemsForAPI
+            };
+
+            try {
+                // L'URL 'order-view' doit être définie dans votre urls.py
+                const response = await fetch("{% url 'order-view' %}", { 
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': CSRF_TOKEN // Utilisation du token récupéré
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    displayAlert(`Commande #${result.order_id} enregistrée avec succès!`, 'bg-green-100 text-green-800');
+                    // Réinitialiser le panier après succès
+                    cart = {};
+                    renderCart();
+                    document.getElementById('client_name_input').value = '';
+                } else {
+                    // Afficher les erreurs du serveur
+                    displayAlert(`Erreur (${response.status}): ${result.message || JSON.stringify(result)}`, 'bg-red-100 text-red-800');
+                }
+            } catch (error) {
+                displayAlert(`Erreur réseau: ${error.message}. Vérifiez la console.`, 'bg-red-100 text-red-800');
+                console.error("Erreur lors de la soumission de la commande:", error);
+            } finally {
+                validateBtn.disabled = false;
+                validateBtn.textContent = 'Valider la Commande';
+            }
+        }
+
+        // Fonction utilitaire pour afficher les messages
+        function displayAlert(message, styleClass) {
+            const alertBox = _alertBox;
+            const alertMessage = _alertMessage;
+            
+            if (!alertBox || !alertMessage) {
+                console.error("ERREUR: Impossible d'afficher l'alerte car la boîte d'alerte est manquante.");
+                return;
+            }
+
+            alertBox.className = `fixed top-5 right-5 p-4 rounded-lg shadow-xl ${styleClass} transition-opacity duration-300`;
+            alertMessage.textContent = message;
+            alertBox.classList.remove('hidden', 'opacity-0');
+            alertBox.classList.add('opacity-100');
+
+            // Cacher l'alerte après 3 secondes
+            setTimeout(() => {
+                alertBox.classList.remove('opacity-100');
+                alertBox.classList.add('opacity-0');
+                // Masquer complètement après la transition (300ms)
+                setTimeout(() => alertBox.classList.add('hidden'), 300); 
+            }, 3000);
+        }
+
+        // Initialisation à l'ouverture de la page
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- MISE EN CACHE DES RÉFÉRENCES DU DOM ---
+            _summaryDiv = document.getElementById('cart-summary');
+            _totalSpan = document.getElementById('cart-total');
+            _emptyMessage = document.getElementById('empty-cart-message');
+            _validateBtn = document.getElementById('validate-btn');
+            _alertBox = document.getElementById('alert-box');
+            _alertMessage = document.getElementById('alert-message');
+
+            if (!_summaryDiv || !_totalSpan || !_emptyMessage || !_validateBtn) {
+                // Log un message plus clair si l'initialisation échoue
+                console.error("ERREUR D'INITIALISATION CRITIQUE: Un ou plusieurs éléments du panier sont introuvables. L'application ne fonctionnera pas.");
+                return; 
+            }
+
+            renderCart();
+        });
+    </script>
+</body>
+</html>

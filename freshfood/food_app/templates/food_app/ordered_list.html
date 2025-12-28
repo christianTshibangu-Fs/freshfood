@@ -1,0 +1,12 @@
+
+
+{% block content %}
+    <h2>{{ orders.customer.name }}</h2>
+    <ul>
+        {% for order in orders %}
+            <li>Order ID: {{ order.id }} - Date: {{ order.created_at }} client name: {{ order.client_name }} user name: {{ order.customer.username }}</li>
+        {% endfor %}
+    </ul>
+    
+    
+{% endblock %}

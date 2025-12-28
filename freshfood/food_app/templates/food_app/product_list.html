@@ -1,11 +1,11 @@
 
 {% block content %}
     <h2>Product List</h2>
-    <a href="{% url 'product_create' %}">Add New Product</a>
+    <a href="{% url 'product-create' %}">Add New Product</a>
     <ul>
         {% for product in products %}
             <li>
-                <a href="{% url 'product_detail' product.id %}">{{ product.label }}</a> - {{ product.price }} USD
+                <a href="{% url 'product-detail' product.id %}">{{ product.label }}</a> - {{ product.price }} CDF
             </li>
         {% empty %}
             <li>No products available.</li>

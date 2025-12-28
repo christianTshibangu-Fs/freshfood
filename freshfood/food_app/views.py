@@ -1,16 +1,22 @@
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 from django.views.generic import ListView, DetailView, UpdateView, CreateView, DeleteView, FormView, TemplateView, RedirectView
 from .models import Product, Order, OrderArticle
+from django.views import View
+from django.contrib.auth.models import User
+from django.db import transaction
+from django.http import JsonResponse, HttpResponseBadRequest
+
+
 # Create your views here.
 
 def home(request):
     return render(request, 'food_app/home.html')
 
 #### Product Views ###
-
+# Create view for a new product
 class ProductCreateView(CreateView):
     model = Product
-    fields = ['label', 'description', 'price', 'stock']
+    fields = ['label', 'description', 'price', 'Categorie']
     template_name = 'food_app/product_form.html'
     success_url = '/products/'
 
@@ -31,8 +37,8 @@ class ProductDetailView(DetailView):
 # Update view for editing a product
 class ProductUpdateView(UpdateView):
     model = Product
-    fields = ['label', 'description', 'price', 'stock']
-    template_name_suffix = '_update_form'
+    fields = ['label', 'description', 'price', 'Categorie']
+    template_name = 'food_app/product_update_form.html'
     success_url = '/products/'
 
 # Delete view for removing a product
@@ -76,9 +82,10 @@ class ProductByCategoryView(ListView):
 # Create view for a new order
 class OrderCreateView(CreateView):
     model = Order
-    fields = ['customer']
+    fields = ['client_name']
     template_name = 'food_app/order_form.html'
-    success_url = '/orders/'
+    success_url = '/order-articles/new/'
+
 
 # List view for all orders
 class OrderedListView(ListView):
@@ -123,7 +130,7 @@ class OrderArticleCreateView(CreateView):
     model = OrderArticle
     fields = ['product', 'quantity', 'order']
     template_name = 'food_app/orderarticle_form.html'
-    success_url = '/orders/'
+    success_url = '/order-articles/new/'
 
 class OrderArticleDeleteView(DeleteView):
     model = OrderArticle
@@ -154,3 +161,102 @@ class OrderArticleDetailView(DetailView):
     model = OrderArticle
     template_name = 'food_app/orderarticle_detail.html'
     context_object_name = 'order_article'   
+
+
+# Pour cet exemple, nous allons simuler un utilisateur connecté.
+# En production, vous utiliseriez @login_required.
+DEFAULT_CUSTOMER_ID = 1
+
+class OrderView(View):
+    template_name = 'food_app/order_form.html'
+
+    def get(self, request, *args, **kwargs):
+        """
+        Affiche la liste des produits disponibles.
+        """
+        # Récupérer tous les produits avec leurs IDs et prix
+        products = Product.objects.all().values('id', 'label', 'description', 'price')
+        
+        # Passer les données à la template (le reste du panier est géré par JS)
+        context = {
+            'products': list(products),
+        }
+        return render(request, self.template_name, context)
+
+    def post(self, request, *args, **kwargs):
+        """
+        Traite la soumission du formulaire de commande (panier validé).
+        """
+        try:
+            # 1. Récupérer les données de la requête
+            # Les données doivent être envoyées en JSON depuis le JavaScript
+            import json
+            data = json.loads(request.body)
+            
+            client_name = data.get('client_name')
+            cart_items = data.get('cart_items', [])
+
+            if not cart_items:
+                return HttpResponseBadRequest("Le panier est vide.")
+            
+            # 2. Simuler l'utilisateur (à remplacer par request.user)
+            # En réalité, l'utilisateur est request.user si vous utilisez @login_required
+            try:
+                customer = User.objects.get(pk=DEFAULT_CUSTOMER_ID)
+            except User.DoesNotExist:
+                # Créer un utilisateur par défaut si nécessaire pour le test
+                customer = User.objects.create_user(
+                    username='default_client', 
+                    password='password', 
+                    email='test@example.com'
+                )
+
+
+            # 3. Utiliser une transaction pour garantir l'atomicité
+            with transaction.atomic():
+                # Création de l'objet Order principal
+                order = Order.objects.create(
+                    customer=customer,
+                    client_name=client_name or customer.username
+                )
+
+                # Dictionnaire pour valider les IDs de produits et les prix
+                product_map = {
+                    p.id: p for p in Product.objects.filter(id__in=[item['product_id'] for item in cart_items])
+                }
+
+                # Création des OrderArticle
+                order_articles = []
+                for item in cart_items:
+                    product_id = item.get('product_id')
+                    quantity = int(item.get('quantity', 0))
+
+                    if quantity > 0 and product_id in product_map:
+                        product = product_map[product_id]
+                        
+                        order_articles.append(
+                            OrderArticle(
+                                order=order,
+                                product=product,
+                                quantity=quantity
+                            )
+                        )
+                
+                # Enregistrement en masse des articles de la commande
+                if not order_articles:
+                    # Si aucune ligne valide, annuler la commande (rollback de la transaction)
+                    raise ValueError("Aucun article valide trouvé dans le panier.")
+                    
+                OrderArticle.objects.bulk_create(order_articles)
+
+            # 4. Réponse de succès
+            return JsonResponse({'message': 'Commande enregistrée avec succès!', 'order_id': order.id}, status=201)
+
+        except json.JSONDecodeError:
+            return HttpResponseBadRequest("Format de données JSON invalide.")
+        except ValueError as e:
+            # Gère l'erreur si aucun article valide n'a pu être créé
+            return HttpResponseBadRequest(f"Erreur de validation: {e}")
+        except Exception as e:
+            # Gestion des autres erreurs (DB, etc.)
+            return JsonResponse({'message': f'Erreur lors de l\'enregistrement: {e}'}, status=500)

@@ -1,0 +1,11 @@
+
+
+{% block content %}
+    <h2>{{ product.label }}</h2>
+    <p>{{ product.description }}</p>
+    <p>Price: {{ product.price }} CDF</p>
+    <p>Category: {{ product.Categorie.name }}</p>
+    <a href="{% url 'product-update' product.id %}">Edit Product</a> |
+    <a href="{% url 'product-delete' product.id %}">Delete Product</a> |
+    <a href="{% url 'product-list' %}">Back to Product List</a>
+{% endblock %}

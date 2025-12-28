@@ -1,0 +1,10 @@
+
+{% block content %}
+    <h2>New Order Article</h2>
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit" >Create Order Article</button>
+    </form>
+    <a href="{% url 'order-create' %}">Back to New Order</a>
+{% endblock %}
