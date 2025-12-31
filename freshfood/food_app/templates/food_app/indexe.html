@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="text-center py-12 px-6 bg-white rounded-xl shadow-2xl border border-gray-200">
+    <h1 class="text-4xl font-extrabold text-indigo-600 mb-4">
+        Bienvenue sur Ma Boutique
+    </h1>
+    
+    {% if user.is_authenticated %}
+        <p class="text-xl text-gray-700 mb-6">
+            Vous êtes connecté en tant que <span class="font-semibold">{{ user.username }}</span>.
+        </p>
+        <p class="text-lg text-gray-600 mb-8">
+            Vous pouvez maintenant accéder à la page de commande sécurisée.
+        </p>
+        <div class="space-y-4 sm:space-y-0 sm:space-x-4 flex flex-col sm:flex-row justify-center">
+            <a href="{% url 'order-view' %}" class="inline-flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-lg shadow-lg text-white bg-indigo-500 hover:bg-indigo-600 transition duration-300 transform hover:scale-[1.05]">
+                Accéder à la Commande (🔒)
+            </a>
+            <a href="{% url 'logout' %}" class="inline-flex items-center justify-center px-8 py-3 border border-red-500 text-base font-medium rounded-lg shadow-md text-red-600 bg-white hover:bg-red-50 transition duration-300">
+                Se Déconnecter
+            </a>
+        </div>
+    {% else %}
+        <p class="text-xl text-gray-700 mb-8">
+            Veuillez vous connecter ou vous inscrire pour passer une commande.
+        </p>
+        <div class="space-y-4 sm:space-y-0 sm:space-x-4 flex flex-col sm:flex-row justify-center">
+            <a href="{% url 'login' %}" class="inline-flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-lg shadow-lg text-white bg-green-500 hover:bg-green-600 transition duration-300 transform hover:scale-[1.05]">
+                Se Connecter
+            </a>
+            <a href="{% url 'register' %}" class="inline-flex items-center justify-center px-8 py-3 border border-indigo-500 text-base font-medium rounded-lg shadow-md text-indigo-600 bg-white hover:bg-indigo-50 transition duration-300">
+                S'inscrire
+            </a>
+        </div>
+    {% endif %}
+    
+</div>
+{% endblock content %}

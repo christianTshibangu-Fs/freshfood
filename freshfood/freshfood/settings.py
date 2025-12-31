@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
 
     'food_app',
+    'account',
 ]
 
 MIDDLEWARE = [
@@ -52,6 +53,7 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = 'freshfood.urls'
+#AUTH_USER_MODEL = 'account.CustomUser'
 
 TEMPLATES = [
     {

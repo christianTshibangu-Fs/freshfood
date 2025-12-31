@@ -3,22 +3,68 @@ from django.views.generic import ListView, DetailView, UpdateView, CreateView, D
 from .models import Product, Order, OrderArticle
 from django.views import View
 from django.contrib.auth.models import User
+from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth import login, authenticate
+from django.contrib.auth.decorators import user_passes_test, login_required
+from django.contrib.auth.mixins import UserPassesTestMixin
+from django.contrib.auth.decorators import login_required
+from django.utils.decorators import method_decorator
+from django.urls import reverse_lazy
 from django.db import transaction
 from django.http import JsonResponse, HttpResponseBadRequest
 
 
 # Create your views here.
+class AdminRequiredMixin(UserPassesTestMixin):
+    """
+    Mixin qui vérifie si l'utilisateur est connecté ET est un administrateur (is_staff ou is_superuser).
+    
+    Si le test échoue (non-admin), l'utilisateur est redirigé vers la page de connexion.
+    """
+    
+    # URL de connexion par défaut si non spécifiée
+    login_url = reverse_lazy('login') 
+
+    def test_func(self):
+        user = self.request.user
+        # L'utilisateur doit être authentifié ET avoir le statut 'is_staff' ou 'is_superuser'.
+        return user.is_authenticated and (user.is_superuser or user.is_staff)
+
+    def handle_no_permission(self):
+        # Surcharge pour forcer la redirection vers la page de connexion
+        return redirect(self.get_login_url())
+
+def register(request):
+    """Gère l'inscription de nouveaux utilisateurs."""
+    if request.method == 'POST':
+        form = UserCreationForm(request.POST)
+        if form.is_valid():
+            user = form.save()
+            # Connecte l'utilisateur immédiatement après l'inscription
+            login(request, user)
+            # Redirige vers la page d'accueil ou une autre page après l'inscription
+            return redirect('/') 
+    else:
+        form = UserCreationForm()
+    
+    # Rend le template 'register.html' en passant le formulaire
+    return render(request, 'food_app/register.html', {'form': form})
+
+
+def index(request):
+    return render(request, 'food_app/indexe.html')
 
 def home(request):
     return render(request, 'food_app/home.html')
 
 #### Product Views ###
 # Create view for a new product
-class ProductCreateView(CreateView):
+class ProductCreateView(AdminRequiredMixin, CreateView):
     model = Product
     fields = ['label', 'description', 'price', 'Categorie']
     template_name = 'food_app/product_form.html'
     success_url = '/products/'
+    redirect_field_name = 'food_app/product_list.html'
 
 # List view for all products
 class ProductListView(ListView):
@@ -29,20 +75,21 @@ class ProductListView(ListView):
     paginate_by = 10
 
 # Detail view for a single product
+@method_decorator(login_required, name='dispatch')
 class ProductDetailView(DetailView):
     model = Product
     template_name = 'food_app/product_detail.html'
     context_object_name = 'product'
 
 # Update view for editing a product
-class ProductUpdateView(UpdateView):
+class ProductUpdateView(AdminRequiredMixin, UpdateView):
     model = Product
     fields = ['label', 'description', 'price', 'Categorie']
     template_name = 'food_app/product_update_form.html'
     success_url = '/products/'
 
 # Delete view for removing a product
-class ProductDeleteView(DeleteView):
+class ProductDeleteView(AdminRequiredMixin, DeleteView):
     model = Product
     template_name = 'food_app/product_confirm_delete.html'
     success_url = '/products/'
@@ -80,6 +127,7 @@ class ProductByCategoryView(ListView):
 ### Order Views ###   
 
 # Create view for a new order
+@method_decorator(login_required, name='dispatch') # Ceci est maintenant redondant
 class OrderCreateView(CreateView):
     model = Order
     fields = ['client_name']
@@ -88,7 +136,7 @@ class OrderCreateView(CreateView):
 
 
 # List view for all orders
-class OrderedListView(ListView):
+class OrderedListView(AdminRequiredMixin, ListView):
     model = Order
     ordering = ['-created_at']
     template_name = 'food_app/ordered_list.html'
@@ -99,7 +147,7 @@ class OrderedListView(ListView):
         return context
 
 # Detail view for a single order
-class OrderDetailView(DetailView):
+class OrderDetailView(AdminRequiredMixin, DetailView):
     model = Order
     template_name = 'food_app/order_detail.html'
     context_object_name = 'order'
@@ -110,13 +158,13 @@ class OrderDetailView(DetailView):
         return context
     
 # Delete view for removing an order
-class OrderDeleteView(DeleteView):
+class OrderDeleteView(AdminRequiredMixin, DeleteView):
     model = Order
     template_name = 'food_app/order_confirm_delete.html'
     success_url = '/orders/'    
 
 # update view for editing an order
-class OrderUpdateView(UpdateView):
+class OrderUpdateView(AdminRequiredMixin, UpdateView):
     model = Order
     fields = ['customer']
     template_name_suffix = '_update_form'
@@ -126,18 +174,22 @@ class OrderUpdateView(UpdateView):
 ### Order Article Views ###
 
 # Create view for adding articles to an order
+@method_decorator(login_required, name='dispatch') # Ceci est maintenant redondant
 class OrderArticleCreateView(CreateView):
     model = OrderArticle
     fields = ['product', 'quantity', 'order']
     template_name = 'food_app/orderarticle_form.html'
     success_url = '/order-articles/new/'
 
+# Delete view for removing an order article
+@method_decorator(login_required, name='dispatch') # Ceci est maintenant redondant
 class OrderArticleDeleteView(DeleteView):
     model = OrderArticle
     template_name = 'food_app/orderarticle_confirm_delete.html'
     success_url = '/orders/'
 
 # Update view for editing an order article
+@method_decorator(login_required, name='dispatch') # Ceci est maintenant redondant
 class OrderArticleUpdateView(UpdateView):   
     model = OrderArticle
     fields = ['product', 'quantity', 'order']
@@ -145,6 +197,7 @@ class OrderArticleUpdateView(UpdateView):
     success_url = '/orders/'
 
 # List view for all order articles
+@method_decorator(login_required, name='dispatch') # Ceci est maintenant redondant
 class OrderArticleListView(ListView):
     model = OrderArticle
     ordering = ['order']
@@ -157,16 +210,18 @@ class OrderArticleListView(ListView):
         return context
 
 # Detail view for a single order article
+@method_decorator(login_required, name='dispatch') # Ceci est maintenant redondant
 class OrderArticleDetailView(DetailView):
     model = OrderArticle
     template_name = 'food_app/orderarticle_detail.html'
     context_object_name = 'order_article'   
 
-
 # Pour cet exemple, nous allons simuler un utilisateur connecté.
 # En production, vous utiliseriez @login_required.
 DEFAULT_CUSTOMER_ID = 1
 
+
+@method_decorator(login_required, name='dispatch')
 class OrderView(View):
     template_name = 'food_app/order_form.html'
 
@@ -260,3 +315,9 @@ class OrderView(View):
         except Exception as e:
             # Gestion des autres erreurs (DB, etc.)
             return JsonResponse({'message': f'Erreur lors de l\'enregistrement: {e}'}, status=500)
+
+
+
+
+
+
