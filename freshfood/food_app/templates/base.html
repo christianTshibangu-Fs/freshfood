@@ -1,29 +1,225 @@
 <!DOCTYPE html>
- {% load static %} 
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FreshFood</title>
-    <link rel="stylesheet" href="{% static 'food_app/styles.css' %}">   
+    <!-- Le titre provient du contexte de la vue (e.g., {'title': 'Accueil'}) -->
+    <title>Mon Projet {% if title %} | {{ title }}{% endif %}</title>
+    
+    <!-- Intégration du CDN de Tailwind CSS (pour le style) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Configuration de la police Inter et des styles de base -->
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7f9fb; /* Arrière-plan légèrement gris */
+        }
+        /* Styles de base pour le conteneur principal */
+        .main-content {
+            padding-top: 5rem; /* Espace pour la barre de navigation fixe */
+        }
+    </style>
+
+    <!-- Intégration du CDN de Font Awesome (pour les icônes) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    
+    <!-- Inclusion des blocs CSS spécifiques à la page enfant -->
+    {% block extra_head %}{% endblock extra_head %}
 </head>
+
 <body>
-    <header>
-        <h1>FreshFood</h1>
-        <nav>
-            <ul>
-                <li><a href="{% url 'product-list' %}">Products</a></li>
+
+    <!-- 1. Barre de Navigation (Navbar) Fixe et Responsive -->
+    <nav class="fixed top-0 left-0 w-full bg-white shadow-lg z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <!-- Logo/Nom du Projet -->
+                <div class="flex items-center">
+                    <a href="{% url 'index-app' %}" class="flex-shrink-0 flex items-center">
+                        <i class="fa-solid fa-solar-system text-indigo-600 text-2xl mr-2"></i>
+                        <span class="text-xl font-extrabold text-gray-800">Mon Projet</span>
+                    </a>
+                </div>
+
+                <!-- Liens de Navigation (Desktop) -->
+                <div class="hidden sm:ml-6 sm:flex sm:space-x-8 sm:items-center">
+                    <a href="{% url 'index-app' %}" class="nav-link">Accueil</a>
+                    
+                    {% if user.is_authenticated and user.is_staff %}
+                        <!-- Lien spécial Admin, uniquement visible pour les admins -->
+                        <a href="{% url 'index-app' %}" class="nav-link bg-red-100 text-red-700 hover:bg-red-200 px-3 py-2 rounded-lg font-medium">
+                            <i class="fa-solid fa-shield-halved mr-1"></i> Admin
+                        </a>
+                    {% endif %}
+
+                    <!-- Liens d'Authentification -->
+                    {% if user.is_authenticated %}
+                        <span class="text-gray-500 font-medium hidden lg:inline">Bienvenue, {{ user.username }}</span>
+                        
+                        <!-- DÉCONNEXION SÉCURISÉE (Requête POST avec CSRF) -->
+                        <form method="post" action="{% url 'logout' %}" class="inline-block">
+                            {% csrf_token %}
+                            <button type="submit" class="auth-btn bg-red-500 hover:bg-red-600">
+                                <i class="fa-solid fa-right-from-bracket mr-1"></i> Déconnexion
+                            </button>
+                        </form>
+
+                    {% else %}
+                        <a href="{% url 'login' %}" class="auth-btn bg-indigo-600 hover:bg-indigo-700">
+                            <i class="fa-solid fa-arrow-right-to-bracket mr-1"></i> Connexion
+                        </a>
+                        <a href="{% url 'register' %}" class="auth-btn border border-gray-300 text-gray-700 hover:bg-gray-50">
+                            Inscription
+                        </a>
+                    {% endif %}
+                </div>
                 
-                <li><a href="{% url 'order-list' %}">Orders</a></li>
-            </ul>
-        </nav>
-    </header>
+                <!-- Bouton Mobile Menu (Hamburger) -->
+                <div class="sm:hidden flex items-center">
+                    <button id="mobile-menu-button" type="button" class="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500" aria-controls="mobile-menu" aria-expanded="false">
+                        <span class="sr-only">Ouvrir le menu principal</span>
+                        <i class="fa-solid fa-bars h-6 w-6" id="icon-open"></i>
+                        <i class="fa-solid fa-xmark h-6 w-6 hidden" id="icon-close"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
 
-    <main>
-        {% block content %}
-        {% endblock %}
-    </main>
+        <!-- Mobile Menu (Affiché/Masqué par JS) -->
+        <div class="hidden sm:hidden" id="mobile-menu">
+            <div class="px-2 pt-2 pb-3 space-y-1">
+                <a href="{% url 'index-app' %}" class="mobile-nav-link">Accueil</a>
+                
+                {% if user.is_authenticated and user.is_staff %}
+                    <a href="{% url 'index-app' %}" class="mobile-nav-link text-red-700 bg-red-100">
+                         <i class="fa-solid fa-shield-halved mr-1"></i> Admin
+                    </a>
+                {% endif %}
 
-    <footer>
-        <p>&copy; 2026 FreshFood. All rights reserved.</p>
-    </footer>   
+                {% if user.is_authenticated %}
+                    <!-- DÉCONNEXION SÉCURISÉE (Mobile) -->
+                    <form method="post" action="{% url 'logout' %}" class="block mt-2">
+                        {% csrf_token %}
+                        <button type="submit" class="mobile-auth-link bg-red-500 text-white w-full">
+                            <i class="fa-solid fa-right-from-bracket mr-1"></i> Déconnexion ({{ user.username }})
+                        </button>
+                    </form>
+
+                {% else %}
+                    <a href="{% url 'login' %}" class="mobile-auth-link bg-indigo-600 text-white">
+                        <i class="fa-solid fa-arrow-right-to-bracket mr-1"></i> Connexion
+                    </a>
+                    <a href="{% url 'register' %}" class="mobile-auth-link border border-gray-300 text-gray-700">
+                        Inscription
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+    </nav>
+
+    <!-- Styles de Liens (Utilisés par la Navbar) -->
+    <style>
+        .nav-link {
+            @apply text-gray-500 hover:bg-gray-100 hover:text-gray-900 px-3 py-2 rounded-lg text-sm font-medium transition duration-150;
+        }
+        /* Important: Le style 'auth-btn' est appliqué au bouton submit à l'intérieur du formulaire */
+        .auth-btn {
+            @apply text-white px-3 py-2 rounded-lg text-sm font-medium transition duration-150 shadow-md;
+        }
+        .mobile-nav-link {
+            @apply block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 transition duration-150;
+        }
+        /* Important: Le style 'mobile-auth-link' est appliqué au bouton submit mobile */
+        .mobile-auth-link {
+            /* w-full est appliqué directement sur le bouton dans le HTML pour mobile */
+            @apply block px-3 py-2 rounded-md text-base font-medium text-center transition duration-150;
+        }
+    </style>
+
+    <!-- 2. Contenu Principal de la Page -->
+    <div class="main-content">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            
+            <!-- Message de Status (Alertes Django) -->
+            {% if messages %}
+                <div class="mb-6">
+                    {% for message in messages %}
+                        <!-- Utilisation de classes dynamiques pour les couleurs d'alerte -->
+                        {% if 'success' in message.tags %}
+                            {% with color='green' icon='fa-circle-check' %}
+                                <div class="p-4 rounded-lg bg-{{ color }}-100 text-{{ color }}-800 shadow-md flex items-center mb-2" role="alert">
+                                    <i class="fa-solid {{ icon }} mr-3 text-{{ color }}-600"></i>
+                                    {{ message }}
+                                </div>
+                            {% endwith %}
+                        {% elif 'error' in message.tags %}
+                            {% with color='red' icon='fa-circle-xmark' %}
+                                <div class="p-4 rounded-lg bg-{{ color }}-100 text-{{ color }}-800 shadow-md flex items-center mb-2" role="alert">
+                                    <i class="fa-solid {{ icon }} mr-3 text-{{ color }}-600"></i>
+                                    {{ message }}
+                                </div>
+                            {% endwith %}
+                        {% else %}
+                             {% with color='blue' icon='fa-circle-info' %}
+                                <div class="p-4 rounded-lg bg-{{ color }}-100 text-{{ color }}-800 shadow-md flex items-center mb-2" role="alert">
+                                    <i class="fa-solid {{ icon }} mr-3 text-{{ color }}-600"></i>
+                                    {{ message }}
+                                </div>
+                            {% endwith %}
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            <!-- Bloc de Contenu Spécifique à la Vue -->
+            <main>
+                {% block content %}
+                    <div class="p-8 bg-white shadow-xl rounded-xl">
+                        <h1 class="text-3xl font-bold text-gray-900 mb-4">Contenu de la Page</h1>
+                        <p class="text-gray-600">Le contenu spécifique de cette page apparaîtra ici.</p>
+                    </div>
+                {% endblock content %}
+            </main>
+
+        </div>
+    </div>
+
+    <!-- 3. Pied de Page (Footer) Simple -->
+    <footer class="bg-gray-800 text-white mt-12 py-6">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <p class="text-sm">&copy; 2026 Mon Projet. Tous droits réservés.</p>
+            <p class="text-xs text-gray-400 mt-1">Conçu avec Django et Tailwind CSS.</p>
+        </div>
+    </footer>
+
+    <!-- 4. JavaScript pour le Menu Mobile -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const button = document.getElementById('mobile-menu-button');
+            const menu = document.getElementById('mobile-menu');
+            const iconOpen = document.getElementById('icon-open');
+            const iconClose = document.getElementById('icon-close');
+
+            if (button && menu) {
+                button.addEventListener('click', () => {
+                    // Toggle visibility of the mobile menu
+                    menu.classList.toggle('hidden');
+                    // Toggle icons (bars <-> xmark)
+                    iconOpen.classList.toggle('hidden');
+                    iconClose.classList.toggle('hidden');
+                    
+                    // Set ARIA attribute for accessibility
+                    const isExpanded = button.getAttribute('aria-expanded') === 'true' || false;
+                    button.setAttribute('aria-expanded', !isExpanded);
+                });
+            }
+        });
+    </script>
+    
+    <!-- Inclusion des blocs JavaScript spécifiques à la page enfant -->
+    {% block extra_js %}{% endblock extra_js %}
+
+</body>
+</html>

@@ -4,15 +4,13 @@ from . import views
 
 urlpatterns = [
 
-
     # Vues d'authentification
     path('register/', views.register, name='register'), # Registration route
     path('login/', LoginView.as_view(template_name='food_app/login.html'), name='login'), # Login route
-    path('logout/', LogoutView.as_view(next_page='/'), name='logout'), # Logout route
+    path('logout/', LogoutView.as_view(template_name='food_app/logout.html'), name='logout'), # Logout route
     
 
     path('', views.index, name='index-app'),
-    path('h/', views.home, name='food_app-home'),  
     path('products/', views.ProductListView.as_view(), name='product-list'), 
     path('products/<int:pk>/', views.ProductDetailView.as_view(), name='product-detail'),
     path('products/<int:pk>/update/', views.ProductUpdateView.as_view(), name='product-update'),

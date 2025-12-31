@@ -54,9 +54,6 @@ def register(request):
 def index(request):
     return render(request, 'food_app/indexe.html')
 
-def home(request):
-    return render(request, 'food_app/home.html')
-
 #### Product Views ###
 # Create view for a new product
 class ProductCreateView(AdminRequiredMixin, CreateView):
@@ -250,6 +247,7 @@ class OrderView(View):
             
             client_name = data.get('client_name')
             cart_items = data.get('cart_items', [])
+            user = request.user
 
             if not cart_items:
                 return HttpResponseBadRequest("Le panier est vide.")
@@ -257,7 +255,7 @@ class OrderView(View):
             # 2. Simuler l'utilisateur (à remplacer par request.user)
             # En réalité, l'utilisateur est request.user si vous utilisez @login_required
             try:
-                customer = User.objects.get(pk=DEFAULT_CUSTOMER_ID)
+                customer = User.objects.get(pk=user.id)
             except User.DoesNotExist:
                 # Créer un utilisateur par défaut si nécessaire pour le test
                 customer = User.objects.create_user(
