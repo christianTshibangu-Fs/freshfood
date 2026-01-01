@@ -1,11 +1,87 @@
-
+{% extends "base.html" %}
 
 {% block content %}
-    <h2>{{ product.label }}</h2>
-    <p>{{ product.description }}</p>
-    <p>Price: {{ product.price }} CDF</p>
-    <p>Category: {{ product.Categorie.name }}</p>
-    <a href="{% url 'product-update' product.id %}">Edit Product</a> |
-    <a href="{% url 'product-delete' product.id %}">Delete Product</a> |
-    <a href="{% url 'product-list' %}">Back to Product List</a>
+<div class="flex items-start justify-center min-h-screen bg-gray-50 p-4 sm:p-6">
+    
+    <!-- Conteneur principal - Carte de Détails du Produit -->
+    <div class="w-full max-w-3xl bg-white p-6 sm:p-8 rounded-xl shadow-2xl border border-gray-100 mt-10">
+        
+        <!-- En-tête et Titre du Produit -->
+        <div class="border-b pb-4 mb-6 flex items-center justify-between">
+            <h1 class="text-4xl font-extrabold text-gray-900">
+                {{ product.label }}
+            </h1>
+            <span class="text-sm font-medium text-gray-500">
+                #{{ product.id }}
+            </span>
+        </div>
+
+        <!-- Section du Prix et de la Catégorie -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            
+            <!-- Prix -->
+            <div class="bg-indigo-50 p-4 rounded-lg border border-indigo-200">
+                <p class="text-sm font-medium text-indigo-600 mb-1">Prix Unitaire</p>
+                <p class="text-3xl font-extrabold text-indigo-700">
+                    {{ product.price }} <span class="text-xl font-semibold ml-1">CDF</span>
+                </p>
+            </div>
+            
+            <!-- Catégorie -->
+            <div class="bg-teal-50 p-4 rounded-lg border border-teal-200">
+                <p class="text-sm font-medium text-teal-600 mb-1">Catégorie</p>
+                <!-- NOTE: J'utilise get_Categorie_display pour obtenir le libellé lisible de la catégorie -->
+                <p class="text-2xl font-bold text-teal-700 capitalize">
+                    {{ product.get_Categorie_display|default:"Non spécifiée" }}
+                </p>
+            </div>
+        </div>
+
+        <!-- Section Description -->
+        <div class="mb-8 p-6 bg-gray-50 rounded-lg border border-gray-200">
+            <h3 class="text-xl font-semibold text-gray-800 mb-3 border-b pb-2">Description du Produit</h3>
+            {% if product.description %}
+                <p class="text-gray-700 leading-relaxed whitespace-pre-wrap">
+                    {{ product.description }}
+                </p>
+            {% else %}
+                <p class="text-gray-500 italic">
+                    Aucune description détaillée n'est disponible pour ce produit.
+                </p>
+            {% endif %}
+        </div>
+
+        <!-- Métadonnées (Dates de Création/Mise à jour) -->
+        <div class="text-sm text-gray-500 mb-8 space-y-1 border-t pt-4">
+            <p>Créé le: <span class="font-medium text-gray-700">{{ product.created_at|date:"d M Y à H:i" }}</span></p>
+            <p>Dernière mise à jour: <span class="font-medium text-gray-700">{{ product.updated_at|date:"d M Y à H:i" }}</span></p>
+        </div>
+
+        <!-- Section des Actions -->
+        <div class="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4 border-t pt-6">
+            
+            <!-- Bouton Modifier -->
+            <a href="{% url 'product-update' product.id %}" 
+               class="flex-1 text-center bg-blue-600 text-white font-semibold py-3 px-6 rounded-xl shadow-md hover:bg-blue-700 transition duration-300 transform hover:scale-[1.01]">
+                <i class="fa-solid fa-edit mr-2"></i>
+                Modifier le Produit
+            </a>
+            
+            <!-- Bouton Supprimer -->
+            <a href="{% url 'product-delete' product.id %}" 
+               class="flex-1 text-center bg-red-600 text-white font-semibold py-3 px-6 rounded-xl shadow-md hover:bg-red-700 transition duration-300 transform hover:scale-[1.01]">
+                <i class="fa-solid fa-trash-alt mr-2"></i>
+                Supprimer
+            </a>
+            
+            <!-- Bouton Retour -->
+            <a href="{% url 'product-list' %}" 
+               class="sm:w-auto text-center border border-gray-300 text-gray-700 font-semibold py-3 px-6 rounded-xl shadow-sm hover:bg-gray-100 transition duration-300">
+                <i class="fa-solid fa-arrow-left mr-2"></i>
+                Retour à la Liste
+            </a>
+        </div>
+        
+    </div>
+</div>
 {% endblock %}

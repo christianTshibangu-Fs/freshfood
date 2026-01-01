@@ -1,28 +1,137 @@
+{% extends "base.html" %}
 
 {% block content %}
-    <h2>Product List</h2>
-    <a href="{% url 'product-create' %}">Add New Product</a>
-    <ul>
-        {% for product in products %}
-            <li>
-                <a href="{% url 'product-detail' product.id %}">{{ product.label }}</a> - {{ product.price }} CDF
-            </li>
-        {% empty %}
-            <li>No products available.</li>
-        {% endfor %}
-    </ul>
 
-    {% if is_paginated %}
-        <div class="pagination">
-            {% if page_obj.has_previous %}
-                <a href="?page={{ page_obj.previous_page_number }}">Previous</a>
-            {% endif %}
-
-            <span>Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
-
-            {% if page_obj.has_next %}
-                <a href="?page={{ page_obj.next_page_number }}">Next</a>
+<!-- Conteneur principal de la page -->
+<div class="flex flex-col items-center justify-start min-h-screen bg-gray-50 p-4 sm:p-6">
+    
+    <!-- Carte de contenu (Max-width) -->
+    <div class="w-full max-w-6xl bg-white p-6 sm:p-8 rounded-2xl shadow-2xl border border-gray-100 mt-10 mb-10">
+        
+        <!-- En-tête et Bouton d'Action -->
+        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b pb-4 mb-8">
+            <h1 class="text-3xl font-extrabold text-gray-900 flex items-center mb-4 sm:mb-0">
+                <i class="fa-solid fa-boxes-stacked mr-3 text-indigo-600"></i>
+                Catalogue de Produits (Regroupé)
+            </h1>
+            
+            <!-- Bouton d'Ajout de Produit -->
+            <a href="{% url 'product-create' %}" class="w-full sm:w-auto flex items-center justify-center bg-indigo-600 text-white font-medium py-2 px-4 rounded-xl shadow-md hover:bg-indigo-700 transition duration-300 transform hover:scale-[1.02]">
+                <i class="fa-solid fa-plus-circle mr-2"></i>
+                Ajouter un Nouveau Produit
+            </a>
+        </div>
+        
+        <!-- Affichage des Catégories avec Défilement Horizontal -->
+        <div class="space-y-10">
+            
+            {% if categorized_products %}
+                {% for category_label, products in categorized_products.items %}
+                    
+                    <!-- Section de Catégorie -->
+                    <section class="border-b pb-6">
+                        <h2 class="text-2xl font-bold text-gray-800 mb-4 border-l-4 border-indigo-500 pl-3">
+                            {{ category_label }}
+                        </h2>
+                        
+                        <!-- Conteneur de Défilement Horizontal -->
+                        <div class="flex space-x-4 pb-4 overflow-x-auto hide-scrollbar">
+                            
+                            <!-- Style pour masquer la barre de défilement (pour l'esthétique) -->
+                            <style>
+                                .hide-scrollbar::-webkit-scrollbar { display: none; }
+                                .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+                            </style>
+                            
+                            {% for product in products %}
+                                <!-- Carte de Produit Individuelle -->
+                                <a href="{% url 'product-detail' product.id %}" 
+                                   class="block flex-shrink-0 w-64 p-4 bg-white border border-gray-200 rounded-xl shadow-lg hover:shadow-xl hover:border-indigo-400 transition duration-200 transform hover:scale-[1.01]">
+                                    
+                                    <div class="flex flex-col justify-between h-full">
+                                        <div>
+                                            <h3 class="text-lg font-semibold text-gray-800 mb-1 truncate">
+                                                {{ product.label }}
+                                            </h3>
+                                            
+                                            {% if product.description %}
+                                            <p class="text-sm text-gray-500 line-clamp-2 mb-3 h-10">
+                                                {{ product.description|default:"Aucune description." }}
+                                            </p>
+                                            {% else %}
+                                            <p class="text-sm text-gray-500 mb-3 h-10 italic">
+                                                Description non disponible.
+                                            </p>
+                                            {% endif %}
+                                        </div>
+                                        
+                                        <!-- Prix -->
+                                        <div class="mt-4 pt-2 border-t">
+                                            <p class="text-xl font-extrabold text-indigo-700">
+                                                {{ product.price }} <span class="text-sm font-normal text-indigo-500">CDF</span>
+                                            </p>
+                                        </div>
+                                    </div>
+                                </a>
+                            {% empty %}
+                                <div class="p-4 bg-gray-50 rounded-lg w-full min-w-80">
+                                    <p class="text-gray-500">Aucun produit dans cette catégorie.</p>
+                                </div>
+                            {% endfor %}
+                            
+                        </div>
+                    </section>
+                {% endfor %}
+            {% else %}
+                <!-- État Vide Général -->
+                <div class="text-center py-16 bg-gray-100 border border-dashed border-gray-300 rounded-xl">
+                    <i class="fa-solid fa-box-open text-6xl text-gray-400 mb-4"></i>
+                    <p class="text-xl font-semibold text-gray-700">Aucun produit ou catégorie disponible sur cette page.</p>
+                    <p class="text-gray-500 mt-2">Commencez par ajouter votre premier produit dès maintenant !</p>
+                    <a href="{% url 'product-create' %}" class="mt-4 inline-block text-indigo-600 font-medium hover:text-indigo-800 transition">
+                        <i class="fa-solid fa-plus mr-1"></i> Ajouter un produit
+                    </a>
+                </div>
             {% endif %}
         </div>
-    {% endif %}
-{% endblock %}
+        
+        <!-- Pagination (Réutilisée depuis la vue originale) -->
+        {% if is_paginated %}
+            <div class="pagination flex justify-center items-center space-x-4 mt-8 pt-4 border-t">
+                
+                <!-- Bouton Précédent -->
+                {% if page_obj.has_previous %}
+                    <a href="?page={{ page_obj.previous_page_number }}" 
+                       class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition duration-150 shadow-sm">
+                        <i class="fa-solid fa-arrow-left mr-1"></i> Précédent
+                    </a>
+                {% else %}
+                    <span class="px-4 py-2 text-sm font-medium text-gray-400 bg-gray-50 rounded-lg cursor-not-allowed">
+                        <i class="fa-solid fa-arrow-left mr-1"></i> Précédent
+                    </span>
+                {% endif %}
+
+                <!-- Indicateur de Page -->
+                <span class="text-md font-semibold text-gray-700">
+                    Page {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}
+                </span>
+
+                <!-- Bouton Suivant -->
+                {% if page_obj.has_next %}
+                    <a href="?page={{ page_obj.next_page_number }}" 
+                       class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition duration-150 shadow-sm">
+                        Suivant <i class="fa-solid fa-arrow-right ml-1"></i>
+                    </a>
+                {% else %}
+                    <span class="px-4 py-2 text-sm font-medium text-gray-400 bg-gray-50 rounded-lg cursor-not-allowed">
+                        Suivant <i class="fa-solid fa-arrow-right ml-1"></i>
+                    </span>
+                {% endif %}
+            </div>
+        {% endif %}
+        <!-- Fin Pagination -->
+
+    </div>
+</div>
+
+{% endblock content %}

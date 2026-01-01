@@ -4,11 +4,12 @@ from .models import Product, Order, OrderArticle
 from django.views import View
 from django.contrib.auth.models import User
 from django.contrib.auth.forms import UserCreationForm
-from django.contrib.auth import login, authenticate
-from django.contrib.auth.decorators import user_passes_test, login_required
+from django.contrib.auth import login 
+from django.contrib.auth.decorators import  login_required
 from django.contrib.auth.mixins import UserPassesTestMixin
 from django.contrib.auth.decorators import login_required
 from django.utils.decorators import method_decorator
+from django.db.models import Prefetch
 from django.urls import reverse_lazy
 from django.db import transaction
 from django.http import JsonResponse, HttpResponseBadRequest
@@ -70,6 +71,35 @@ class ProductListView(ListView):
     template_name = 'food_app/product_list.html'
     context_object_name = 'products'
     paginate_by = 10
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        
+        # Les produits de la page courante (grâce à la pagination)
+        all_products_on_page = context['object_list'] 
+        
+        # Récupérer la correspondance code -> label (ex: 'vf' -> 'viancde fraiche')
+        category_map = dict(Product.CATEGORIE_CHOICES)
+        
+        categorized_products = {}
+        
+        # Regrouper les produits par leur nom de catégorie lisible
+        for product in all_products_on_page:
+            # Utiliser le code (ex: 'vf') pour trouver le libellé ('viancde fraiche')
+            category_code = product.Categorie
+            category_label = category_map.get(category_code, 'Catégorie Inconnue')
+            
+            if category_label not in categorized_products:
+                categorized_products[category_label] = []
+                
+            categorized_products[category_label].append(product)
+            
+        # Ajouter le dictionnaire groupé au contexte
+        # Trier par nom de catégorie pour un affichage cohérent
+        sorted_categorized_products = dict(sorted(categorized_products.items()))
+        context['categorized_products'] = sorted_categorized_products
+        
+        return context
 
 # Detail view for a single product
 @method_decorator(login_required, name='dispatch')
@@ -138,10 +168,27 @@ class OrderedListView(AdminRequiredMixin, ListView):
     ordering = ['-created_at']
     template_name = 'food_app/ordered_list.html'
     context_object_name = 'orders'
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['order_articles'] = OrderArticle.objects.all()
-        return context
+    
+    def get_queryset(self):
+        """
+        Optimise les requêtes pour éviter le problème N+1.
+        - select_related pour le client (ForeignKey)
+        - prefetch_related pour les articles de la commande (relation inverse)
+        """
+        
+        # Le nom par défaut de la relation inverse de OrderArticle vers Order est 'orderarticle_set'.
+        # Nous utilisons Prefetch pour charger les articles et leurs produits associés.
+        order_articles_prefetch = Prefetch(
+            'orderarticle_set',  # Le related_name par défaut de OrderArticle vers Order
+            queryset=OrderArticle.objects.select_related('product'),
+            to_attr='articles' # Nomme l'attribut de résultat 'articles' pour une utilisation facile dans le template
+        )
+
+        return Order.objects.all().select_related(
+            'customer'  # Chargement de l'utilisateur (User)
+        ).prefetch_related(
+            order_articles_prefetch
+        ).order_by('-created_at')
 
 # Detail view for a single order
 class OrderDetailView(AdminRequiredMixin, DetailView):
@@ -315,7 +362,45 @@ class OrderView(View):
             return JsonResponse({'message': f'Erreur lors de l\'enregistrement: {e}'}, status=500)
 
 
+class DashboardView(AdminRequiredMixin, TemplateView):
+    template_name = 'food_app/dashboard.html'
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['total_products'] = Product.objects.count()
+        context['total_orders'] = Order.objects.count()
+        context['total_order_articles'] = OrderArticle.objects.count()
+        context['recent_orders'] = Order.objects.order_by('-created_at')[:5]
+        context['recent_products'] = Product.objects.order_by('-id')[:5]
+        context['all_orders'] = Order.objects.all()
+        context['all_products'] = Product.objects.all()
 
+        return context
+
+ 
+@method_decorator(login_required, name='dispatch')
+class UserOrderListView(ListView):
+    model = Order
+    template_name = 'food_app/user_order_list.html'
+    context_object_name = 'user_orders'
+
+    def get_queryset(self):
+        # Définition de la pré-récupération des articles de commande
+        # On utilise le related_name par défaut 'orderarticle_set' et on charge les produits associés
+        order_articles_prefetch = Prefetch(
+            'orderarticle_set',  
+            queryset=OrderArticle.objects.select_related('product'),
+            to_attr='articles' # Nomme la liste d'articles dans le template : order.articles
+        )
+
+        # Récupérer uniquement les commandes de l'utilisateur connecté, 
+        # optimiser le chargement et trier par date
+        return Order.objects.filter(customer=self.request.user).select_related(
+            'customer'
+        ).prefetch_related(
+            order_articles_prefetch
+        ).order_by('-created_at')
+    
+    
 
 

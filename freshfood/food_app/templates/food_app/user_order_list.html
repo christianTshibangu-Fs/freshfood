@@ -9,60 +9,61 @@
 <div class="p-4 sm:p-8 bg-gray-50 min-h-screen font-sans">
     <header class="mb-10">
         <h1 class="text-4xl font-extrabold text-gray-800 tracking-tight mb-2">
-            <i class="fas fa-receipt text-indigo-500 mr-3"></i>
-            Liste des Commandes
+            <i class="fas fa-shopping-basket text-teal-500 mr-3"></i>
+            Mes Commandes
         </h1>
-        <p class="text-gray-500">Aperçu de toutes les commandes passées, y compris les détails des articles et les totaux.</p>
+        <p class="text-gray-500">Retrouvez l'historique de toutes vos commandes et leurs détails.</p>
     </header>
 
     <div class="space-y-6">
-        {% if orders %}
-            {% for order in orders %}
+        {% if user_orders %}
+            {% for order in user_orders %}
                 <div id="order-card-{{ order.id }}" class="bg-white rounded-xl shadow-lg hover:shadow-xl transition duration-300 overflow-hidden border border-gray-200">
                     
                     <!-- EN-TÊTE DE LA COMMANDE (Clique pour ouvrir/fermer) -->
-                    <div class="p-5 sm:p-6 flex flex-wrap items-center justify-between cursor-pointer bg-indigo-50 hover:bg-indigo-100 transition duration-150" 
+                    <div class="p-5 sm:p-6 flex flex-wrap items-center justify-between cursor-pointer bg-teal-50 hover:bg-teal-100 transition duration-150" 
                          onclick="toggleDetails('{{ order.id }}')">
                         
                         <!-- Informations Principales -->
                         <div class="flex-1 min-w-[200px] mb-3 sm:mb-0">
-                            <p class="text-sm font-semibold text-indigo-600 uppercase">Commande #{{ order.id }}</p>
-                            <p class="text-xl font-bold text-gray-900">{{ order.client_name|default:"Client Anonyme" }}</p>
-                            <span class="text-xs text-gray-500">Par: {{ order.customer.username|default:"Utilisateur Inconnu" }}</span>
+                            <p class="text-sm font-semibold text-teal-600 uppercase">Commande #{{ order.id }}</p>
+                            <p class="text-xl font-bold text-gray-900">Passée le {{ order.created_at|date:"d M Y" }}</p>
+                            <!-- Affiche le nom du client (utile s'il y a un champ de livraison) -->
+                            <span class="text-xs text-gray-500">Client: {{ order.client_name|default:order.customer.username }}</span>
                         </div>
 
                         <!-- Date et Total -->
                         <div class="flex items-center space-x-6">
                             <div class="text-right hidden sm:block">
-                                <p class="text-sm font-medium text-gray-500">Date</p>
-                                <p class="text-lg font-semibold text-gray-800">{{ order.created_at|date:"d M Y H:i" }}</p>
+                                <p class="text-sm font-medium text-gray-500">Statut</p>
+                                <p class="text-lg font-semibold text-green-700">Traitée</p> <!-- Statut factice, à adapter -->
                             </div>
 
                             <div class="text-right">
-                                <p class="text-sm font-medium text-gray-500">Total</p>
-                                <!-- LOGIQUE CORRIGÉE: Utilise la nouvelle méthode get_total_price() -->
+                                <p class="text-sm font-medium text-gray-500">Total Payé</p>
+                                <!-- LOGIQUE CORRECTE: Appel de la méthode get_total_price() -->
                                 <p class="text-xl font-bold text-green-600">
-                                    {{ order.get_total_price|floatformat:2|default:"0.00" }} CDF 
+                                    {{ order.get_total_price|floatformat:2|default:"0.00" }} € 
                                 </p>
                             </div>
                             
                             <!-- Icône de bascule -->
-                            <i id="icon-{{ order.id }}" class="fas fa-chevron-down text-lg text-indigo-600 transition-transform duration-300 ml-4"></i>
+                            <i id="icon-{{ order.id }}" class="fas fa-chevron-down text-lg text-teal-600 transition-transform duration-300 ml-4"></i>
                         </div>
                     </div>
 
                     <!-- DÉTAILS DES ARTICLES (Masqués par défaut) -->
-                    <!-- L'attribut 'articles' est défini par le prefetch dans la vue -->
+                    <!-- Accès à la liste d'articles pré-chargée : order.articles -->
                     <div id="details-{{ order.id }}" class="max-h-0 overflow-hidden transition-max-height duration-500 ease-in-out">
                         <div class="p-4 sm:p-6 bg-gray-50 border-t border-gray-200">
-                            <h3 class="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">Articles Commandés</h3>
+                            <h3 class="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">Détails des Articles</h3>
                             
                             <!-- Tableau des Articles -->
                             <div class="overflow-x-auto">
                                 <table class="min-w-full divide-y divide-gray-300">
                                     <thead class="bg-gray-100">
                                         <tr>
-                                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Article</th>
+                                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Produit</th>
                                             <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Quantité</th>
                                             <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Prix Unitaire</th>
                                             <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Sous-total</th>
@@ -71,15 +72,16 @@
                                     <tbody class="divide-y divide-gray-200">
                                         {% for article in order.articles %}
                                             <tr class="hover:bg-white">
-                                                <!-- LOGIQUE CORRIGÉE: Accès direct aux propriétés -->
                                                 <td class="px-3 py-2 whitespace-nowrap text-sm font-medium text-gray-900">{{ article.product.label }}</td>
                                                 <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-500">{{ article.quantity }}</td>
+                                                <!-- Accès à la propriété unit_price définie dans le modèle corrigé -->
                                                 <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-500 text-right">{{ article.unit_price|floatformat:2 }} €</td>
+                                                <!-- Accès à la méthode get_subtotal() définie dans le modèle corrigé -->
                                                 <td class="px-3 py-2 whitespace-nowrap text-sm font-semibold text-gray-700 text-right">{{ article.get_subtotal|floatformat:2 }} €</td>
                                             </tr>
                                         {% empty %}
                                             <tr>
-                                                <td colspan="4" class="px-3 py-2 text-center text-gray-500">Aucun article trouvé pour cette commande.</td>
+                                                <td colspan="4" class="px-3 py-2 text-center text-gray-500">Aucun article dans cette commande.</td>
                                             </tr>
                                         {% endfor %}
                                     </tbody>
@@ -91,9 +93,9 @@
             {% endfor %}
         {% else %}
             <div class="text-center p-10 bg-white rounded-xl shadow-md">
-                <i class="fas fa-inbox text-5xl text-gray-300 mb-4"></i>
-                <p class="text-xl font-medium text-gray-600">Aucune commande trouvée.</p>
-                <p class="text-gray-500">Commencez par prendre une nouvelle commande.</p>
+                <i class="fas fa-box-open text-5xl text-gray-300 mb-4"></i>
+                <p class="text-xl font-medium text-gray-600">Vous n'avez pas encore passé de commande.</p>
+                <p class="text-gray-500">Commencez vos achats dès maintenant !</p>
             </div>
         {% endif %}
     </div>
@@ -111,13 +113,13 @@
             details.classList.remove('max-h-0');
             details.classList.add('max-h-screen');
             icon.classList.add('rotate-180');
-            card.classList.add('shadow-2xl', 'border-indigo-400');
+            card.classList.add('shadow-2xl', 'border-teal-400'); // Mise en évidence en vert-bleu
         } else {
             // Masquer les détails
             details.classList.remove('max-h-screen');
             details.classList.add('max-h-0');
             icon.classList.remove('rotate-180');
-            card.classList.remove('shadow-2xl', 'border-indigo-400');
+            card.classList.remove('shadow-2xl', 'border-teal-400');
         }
     }
 </script>
