@@ -25,6 +25,56 @@ SECRET_KEY = 'django-insecure-w!^w0ta%bio4c%fh_*c^f=v**c11q&6devz2i@3)s+=$h9hr5i
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
+# Security Settings
+# https://docs.djangoproject.com/en/6.0/topics/security/
+
+if DEBUG :
+    SECURE_SSL_REDIRECT = False
+    SESSION_COOKIE_SECURE = False
+
+else:
+    SECURE_SSL_REDIRECT = True
+    # Session and CSRF cookies should be secure
+    SESSION_COOKIE_SECURE = True
+    # CSRF cookie should be secure
+    CSRF_COOKIE_SECURE = True
+    # Prevent the browser from guessing content types
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    # Prevent clickjacking
+    X_FRAME_OPTIONS = 'DENY'
+    # Enable the XSS filter in the browser
+    SECURE_BROWSER_XSS_FILTER = True
+    # Use HSTS to force HTTPS
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    # 60 seconds for testing; increase to a higher value like 31536000 for production
+    SECURE_HSTS_PRELOAD = True
+    SECURE_HSTS_SECONDS = 31536000
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+
+    # Content Security Policy (CSP) Settings
+    CSP_USE_NONCE = True
+    # Define CSP directives
+    CSP_DEFAULT_SRC = ("'self'",)    
+    # Define other CSP directives as needed
+    CSP_CONNECT_SRC = ("'self'",) 
+    # Define other CSP directives as needed
+    CSP_FRAME_SRC = ("'self'",)  
+    CSP_BASE_URI = ("'self'",) 
+    CSP_FORM_ACTION = ("'self'",)
+    CSP_MEDIA_SRC = ("'self'",) 
+    CSP_OBJECT_SRC = ("'none'",)
+    CSP_CHILD_SRC = ("'self'",) 
+    CSP_FONT_SRC = ("'self'",) 
+    CSP_MANIFEST_SRC = ("'self'",)
+    CSP_WORKER_SRC = ("'self'",) 
+    CSP_PREFETCH_SRC = ("'self'",)
+    CSP_BLOCK_ALL_MIXED_CONTENT = True
+    CSP_UPGRADE_INSECURE_REQUESTS = True
+    CSP_SCRIPT_SRC = ("'self'",) 
+    CSP_STYLE_SRC = ("'self'", "'unsafe-inline'",) 
+    CSP_IMG_SRC = ("'self'", "data:", "*")
+    CSP_FONT_SRC = ("'self'",)
+
 ALLOWED_HOSTS = [ '192.168.225.190', 'localhost', '127.0.0.1']
 
 
@@ -118,3 +168,13 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles_root'
+
+STATICFILES_DIRS = [
+    BASE_DIR / 'static',
+    # Ajoutez d'autres chemins si vous avez des fichiers statiques globaux
+]
+
+# Si vous utilisez des fichiers média (téléchargements utilisateurs)
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
